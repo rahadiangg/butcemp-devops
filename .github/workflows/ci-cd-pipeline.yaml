@@ -29,3 +29,22 @@ jobs:
         run: |
           docker buildx create --use
           docker buildx build -t rahadiangg/butcemp-devops:${GITHUB_SHA::7} --push .
+  
+  deploy-to-gcp:
+    runs-on: ubuntu-22.04
+    needs:
+      - build-and-push
+
+    steps:
+      - name: Auth to GCP
+        id: auth
+        uses: google-github-actions/auth@v1
+        with :
+          credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy to CloudRun
+        run: |
+          gcloud run deploy ${GITHUB_REPOSITORY#*/} --image=rahadiangg/butcemp-devops:${GITHUB_SHA::7} \
+          --region=asia-southeast2 --memory=128Mi --cpu=1.0 --port=3000 --min-instances=0 --max-instances=3 \
+          --allow-unauthenticated --project=${{ secrets.GCP_PROJECT_ID }}
